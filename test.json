@@ -1,0 +1,27 @@
+[
+    {
+        "method":"GET",
+        "path":"/mysvc/call",
+        "queries": [
+            {"key":"q","value":"blah"}
+        ],
+        "return":{
+            "status":200,
+            "headers": [
+                {"key":"Content-Type","value":"application/json"}
+            ],
+            "body":"{\"field\":\"value\"}"
+        }
+    },
+    {
+        "method":"GET",
+        "path":"/mysvc/xcall",
+        "return":{
+            "status":200,
+            "headers": [
+                {"key":"Content-Type","value":"application/xml"}
+            ],
+            "body":"<field attr=\"x\">value</field>"
+        }
+    }
+]

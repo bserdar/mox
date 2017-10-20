@@ -1,0 +1,13 @@
+{
+	"comment": "",
+	"ignore": "test",
+	"package": [
+		{
+			"checksumSHA1": "06I0wBTXKCu2Br46zNqsv+LXRgY=",
+			"path": "github.com/gorilla/mux",
+			"revision": "7625a85c14e615274a4ee4bc8654f72310a563e4",
+			"revisionTime": "2017-10-20T03:47:00Z"
+		}
+	],
+	"rootPath": "github.com/bserdar/sock"
+}
