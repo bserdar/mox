@@ -19,8 +19,10 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"net/http"
+	"os"
 	"sync"
 	"time"
 
@@ -188,35 +190,39 @@ func (h *AdminHandler) BuildRouter() *mux.Router {
 	return router
 }
 
-func (h *AdminHandler) ServeHTTP(writer http.ResponseWriter, request *http.Request) {
-	if request.Method == http.MethodPost {
-		var err error
-
-		var reqs []RouteRequest
-		data, err := ioutil.ReadAll(request.Body)
+// ProcessStream processes the given stream, parses it and creates routes
+func (h *AdminHandler) ProcessStream(rd io.Reader) ([]RouteRequest, error) {
+	var reqs []RouteRequest
+	data, err := ioutil.ReadAll(rd)
+	if err == nil {
+		err = json.Unmarshal(data, &reqs)
+		if err != nil {
+			reqs = make([]RouteRequest, 1)
+			err = json.Unmarshal(data, &reqs[0])
+		}
 		if err == nil {
-			err = json.Unmarshal(data, &reqs)
-			if err != nil {
-				reqs = make([]RouteRequest, 1)
-				err = json.Unmarshal(data, &reqs[0])
+			h.M.Lock()
+			defer h.M.Unlock()
+
+			for _, req := range reqs {
+				_, err := req.BuildRoute(nil)
+				if err == nil {
+					h.AddRoute(req)
+				} else {
+					break
+				}
 			}
 			if err == nil {
-				h.M.Lock()
-				defer h.M.Unlock()
-
-				for _, req := range reqs {
-					_, err := req.BuildRoute(nil)
-					if err == nil {
-						h.AddRoute(req)
-					} else {
-						break
-					}
-				}
-				if err == nil {
-					h.M.Router = h.BuildRouter()
-				}
+				h.M.Router = h.BuildRouter()
 			}
 		}
+	}
+	return reqs, err
+}
+
+func (h *AdminHandler) ServeHTTP(writer http.ResponseWriter, request *http.Request) {
+	if request.Method == http.MethodPost {
+		reqs, err := h.ProcessStream(request.Body)
 		if err == nil {
 			writer.WriteHeader(http.StatusOK)
 			ret, _ := json.Marshal(reqs)
@@ -245,6 +251,21 @@ func main() {
 
 	m := MockHandler{}
 	a := AdminHandler{Routes: make([]*RouteRequest, 0), M: &m}
+
+	for _, f := range flag.Args() {
+		file, err := os.Open(f)
+		if err != nil {
+			fmt.Println(err)
+			os.Exit(1)
+		}
+		_, err = a.ProcessStream(file)
+		if err != nil {
+			fmt.Println(err)
+			os.Exit(1)
+		}
+		file.Close()
+	}
+
 	admSrv := &http.Server{
 		Handler:      &a,
 		Addr:         ":" + *adminPort,
